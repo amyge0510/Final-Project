@@ -1,7 +1,8 @@
-# Neo4j connection configuration
-uri: "bolt://localhost:7687"
-user: "neo4j"
-password: "Wrhgq2012838!"  # User's Neo4j password
+# Neo4j configuration
+neo4j:
+  uri: "bolt://localhost:7687"
+  user: "neo4j"
+  password: "Wrhgq2012838!"  # User's Neo4j password
 
 # Schema configuration
 schema:

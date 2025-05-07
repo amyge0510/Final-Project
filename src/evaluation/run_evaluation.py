@@ -180,17 +180,13 @@ def run_evaluation(
     output_dir: str = "results/evaluation"
 ) -> None:
     """Run the complete evaluation pipeline."""
-    # Load configuration
-    with open(config_path, 'r') as f:
-        config = yaml.safe_load(f)
-    
     # Create output directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = os.path.join(output_dir, timestamp)
     os.makedirs(output_dir, exist_ok=True)
     
     # Initialize components
-    evaluator = QueryEvaluator(config)
+    evaluator = QueryEvaluator(config_path)
     analyzer = StatisticalAnalyzer()
     gpt_scorer = GPTScorer()
     
