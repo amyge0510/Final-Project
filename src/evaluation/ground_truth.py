@@ -36,6 +36,55 @@ class GroundTruthBuilder:
         self.copurchase_df['source_asin'] = self.copurchase_df['source_asin'].astype(str)
         self.copurchase_df['target_asin'] = self.copurchase_df['target_asin'].astype(str)
     
+    def _get_expected_asins(self, query: str, query_type: str, source_asin: str = None) -> List[str]:
+        """Dynamically derive expected ASINs based on query type and content."""
+        if query_type == "relationship":
+            if source_asin:
+                # Get co-purchased products
+                copurchased = self.copurchase_df[
+                    self.copurchase_df['source_asin'] == source_asin
+                ]['target_asin'].tolist()
+                
+                # Get products with similar review patterns
+                similar_reviews = self.reviews_df[
+                    (self.reviews_df['product_asin'].isin(copurchased)) &
+                    (self.reviews_df['rating'] >= 4.0)
+                ]['product_asin'].value_counts().head(5).index.tolist()
+                
+                # Combine and deduplicate
+                expected = list(set(copurchased[:5] + similar_reviews))
+                return expected[:5]  # Return top 5
+            else:
+                # For queries without source ASIN, use category-based relationships
+                category = query.split("in the ")[-1].split(" category")[0] if "category" in query else None
+                if category:
+                    return self.products_df[
+                        self.products_df['category'] == category
+                    ].sort_values('rating', ascending=False)['asin'].head(5).tolist()
+        
+        elif query_type == "attribute":
+            if "category" in query:
+                category = query.split("in the ")[-1].split(" category")[0]
+                if "highest-rated" in query:
+                    return self.products_df[
+                        self.products_df['category'] == category
+                    ].sort_values('rating', ascending=False)['asin'].head(5).tolist()
+                elif "bestsellers" in query:
+                    return self.products_df[
+                        self.products_df['category'] == category
+                    ].sort_values('salesrank')['asin'].head(5).tolist()
+            elif "similar to" in query:
+                # Extract source product from query
+                source_title = query.split("similar to ")[-1].strip("'")
+                source_asin = self.products_df[
+                    self.products_df['title'].str.contains(source_title, case=False)
+                ]['asin'].iloc[0]
+                
+                # Get similar products based on co-purchases and ratings
+                return self._get_expected_asins(query, "relationship", source_asin)
+        
+        return []
+    
     def _build_relationship_ground_truth(self) -> List[Dict[str, Any]]:
         """Build ground truth for relationship queries."""
         relationship_queries = []
@@ -44,49 +93,42 @@ class GroundTruthBuilder:
         top_products = self.copurchase_df['source_asin'].value_counts().head(20).index
         
         for asin in top_products:
-            # Get co-purchased products
-            copurchased = self.copurchase_df[
-                self.copurchase_df['source_asin'] == asin
-            ]['target_asin'].tolist()
-            
             # Get product details
             product = self.products_df[self.products_df['asin'] == asin].iloc[0]
             
             # Create co-purchase query
-            query = {
-                "query": f"What books are frequently bought together with '{product['title']}'?",
+            query = f"What books are frequently bought together with '{product['title']}'?"
+            expected_asins = self._get_expected_asins(query, "relationship", asin)
+            
+            relationship_queries.append({
+                "query": query,
                 "type": "relationship",
                 "subtype": "co_purchase",
                 "source_asin": asin,
-                "expected_asins": copurchased[:5],  # Top 5 co-purchased items
+                "expected_asins": expected_asins,
                 "metadata": {
                     "source_title": product['title'],
                     "source_category": product['category'],
-                    "num_copurchases": len(copurchased)
+                    "num_copurchases": len(expected_asins)
                 }
-            }
-            relationship_queries.append(query)
+            })
             
             # Create review-based query
-            # Get products with similar review patterns
-            similar_reviews = self.reviews_df[
-                (self.reviews_df['product_asin'].isin(copurchased)) &
-                (self.reviews_df['rating'] >= 4.0)
-            ]['product_asin'].value_counts().head(5).index.tolist()
+            query = f"What books are highly rated by readers who enjoyed '{product['title']}'?"
+            expected_asins = self._get_expected_asins(query, "relationship", asin)
             
-            query = {
-                "query": f"What books are highly rated by readers who enjoyed '{product['title']}'?",
+            relationship_queries.append({
+                "query": query,
                 "type": "relationship",
                 "subtype": "review_pattern",
                 "source_asin": asin,
-                "expected_asins": similar_reviews,
+                "expected_asins": expected_asins,
                 "metadata": {
                     "source_title": product['title'],
                     "source_category": product['category'],
                     "min_rating": 4.0
                 }
-            }
-            relationship_queries.append(query)
+            })
         
         return relationship_queries
     
@@ -98,43 +140,41 @@ class GroundTruthBuilder:
         top_categories = self.products_df['category'].value_counts().head(5).index
         
         for category in top_categories:
-            # Get top-rated books in category
-            top_rated = self.products_df[
-                (self.products_df['category'] == category) &
-                (self.products_df['rating'] >= 4.5)
-            ].sort_values('rating', ascending=False).head(5)
+            # Create rating-based query
+            query = f"What are the highest-rated books in the {category} category?"
+            expected_asins = self._get_expected_asins(query, "attribute")
             
-            query = {
-                "query": f"What are the highest-rated books in the {category} category?",
+            attribute_queries.append({
+                "query": query,
                 "type": "attribute",
                 "subtype": "rating",
-                "expected_asins": top_rated['asin'].tolist(),
+                "expected_asins": expected_asins,
                 "metadata": {
                     "category": category,
                     "min_rating": 4.5,
-                    "expected_titles": top_rated['title'].tolist()
+                    "expected_titles": self.products_df[
+                        self.products_df['asin'].isin(expected_asins)
+                    ]['title'].tolist()
                 }
-            }
-            attribute_queries.append(query)
+            })
             
-            # Get recent bestsellers
-            recent_bestsellers = self.products_df[
-                (self.products_df['category'] == category) &
-                (self.products_df['salesrank'] <= 1000)
-            ].sort_values('salesrank').head(5)
+            # Create bestseller query
+            query = f"What are the current bestsellers in {category}?"
+            expected_asins = self._get_expected_asins(query, "attribute")
             
-            query = {
-                "query": f"What are the current bestsellers in {category}?",
+            attribute_queries.append({
+                "query": query,
                 "type": "attribute",
                 "subtype": "bestseller",
-                "expected_asins": recent_bestsellers['asin'].tolist(),
+                "expected_asins": expected_asins,
                 "metadata": {
                     "category": category,
                     "max_salesrank": 1000,
-                    "expected_titles": recent_bestsellers['title'].tolist()
+                    "expected_titles": self.products_df[
+                        self.products_df['asin'].isin(expected_asins)
+                    ]['title'].tolist()
                 }
-            }
-            attribute_queries.append(query)
+            })
         
         return attribute_queries
     

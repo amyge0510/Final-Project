@@ -1,5 +1,7 @@
 import argparse
 import json
+import os
+from datetime import datetime
 from typing import Dict, Any
 from retrieval.graph_rag import GraphRAG
 from retrieval.semantic import SemanticRetriever
@@ -36,15 +38,24 @@ def run_demo_query(
     results = {
         "query": query,
         "type": query_type,
+        "timestamp": datetime.now().isoformat(),
         "graph_rag": {
             "retrieved_asins": graph_rag_results["retrieved_asins"],
             "context": graph_rag_results["context"],
-            "answer": graph_rag_results.get("answer", None)
+            "answer": graph_rag_results.get("answer", None),
+            "metadata": {
+                "num_results": len(graph_rag_results["retrieved_asins"]),
+                "context_length": len(graph_rag_results["context"])
+            }
         },
         "semantic": {
             "retrieved_asins": semantic_results["retrieved_asins"],
             "context": semantic_results["context"],
-            "answer": semantic_results.get("answer", None)
+            "answer": semantic_results.get("answer", None),
+            "metadata": {
+                "num_results": len(semantic_results["retrieved_asins"]),
+                "context_length": len(semantic_results["context"])
+            }
         }
     }
     
@@ -61,19 +72,24 @@ def format_results(results: Dict[str, Any]) -> str:
     """Format results for display."""
     output = [
         f"\nQuery: {results['query']}",
-        f"Type: {results['type']}\n",
+        f"Type: {results['type']}",
+        f"Timestamp: {results['timestamp']}\n",
         
         "GraphRAG Results:",
         "----------------",
         f"Retrieved ASINs: {', '.join(results['graph_rag']['retrieved_asins'])}",
         f"Context: {results['graph_rag']['context']}",
-        f"Answer: {results['graph_rag']['answer']}\n",
+        f"Answer: {results['graph_rag']['answer']}",
+        f"Number of Results: {results['graph_rag']['metadata']['num_results']}",
+        f"Context Length: {results['graph_rag']['metadata']['context_length']}\n",
         
         "Semantic Results:",
         "----------------",
         f"Retrieved ASINs: {', '.join(results['semantic']['retrieved_asins'])}",
         f"Context: {results['semantic']['context']}",
-        f"Answer: {results['semantic']['answer']}\n"
+        f"Answer: {results['semantic']['answer']}",
+        f"Number of Results: {results['semantic']['metadata']['num_results']}",
+        f"Context Length: {results['semantic']['metadata']['context_length']}\n"
     ]
     
     if "gpt_scores" in results:
@@ -89,6 +105,23 @@ def format_results(results: Dict[str, Any]) -> str:
         ])
     
     return "\n".join(output)
+
+def save_results(results: Dict[str, Any], output_path: str):
+    """Save results to JSON file and append to log file."""
+    # Save individual results
+    with open(output_path, 'w') as f:
+        json.dump(results, f, indent=2)
+    
+    # Append to log file
+    log_dir = "logs/demo_queries"
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, "query_log.jsonl")
+    
+    with open(log_path, 'a') as f:
+        f.write(json.dumps(results) + "\n")
+    
+    print(f"\nResults saved to {output_path}")
+    print(f"Query logged to {log_path}")
 
 def main():
     parser = argparse.ArgumentParser(description="Run a demo query through the retrieval system")
@@ -114,11 +147,14 @@ def main():
     # Print results
     print(format_results(results))
     
-    # Save results if output path specified
+    # Save results
     if args.output:
-        with open(args.output, 'w') as f:
-            json.dump(results, f, indent=2)
-        print(f"\nResults saved to {args.output}")
+        save_results(results, args.output)
+    else:
+        # Save to default location
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = f"results/demo_queries/query_{timestamp}.json"
+        save_results(results, output_path)
 
 if __name__ == "__main__":
     main() 
