@@ -1,0 +1,54 @@
+# Neo4j connection configuration
+uri: "bolt://localhost:7687"
+user: "neo4j"
+password: "Wrhgq2012838!"  # User's Neo4j password
+
+# Schema configuration
+schema:
+  nodes:
+    - name: "Product"
+      properties:
+        - id
+        - asin
+        - title
+        - group
+        - salesrank
+        - embedding
+        
+    - name: "User"
+      properties:
+        - id
+        - community_id
+        - embedding
+        
+    - name: "Category"
+      properties:
+        - id
+        - path
+        
+  relationships:
+    - name: "REVIEWED"
+      start_node: "User"
+      end_node: "Product"
+      properties:
+        - rating
+        - votes
+        - helpful
+        - date
+        
+    - name: "SIMILAR_TO"
+      start_node: "Product"
+      end_node: "Product"
+      properties:
+        - similarity
+        
+    - name: "BELONGS_TO"
+      start_node: "Product"
+      end_node: "Category"
+      
+    - name: "IN_COMMUNITY"
+      start_node: "User"
+      end_node: "User"
+      properties:
+        - community_id
+        - similarity_score 

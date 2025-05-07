@@ -1,0 +1,18 @@
+# Data processing configuration
+raw_data_path: "data/raw/amazon-meta.txt"
+processed_data_path: "data/processed"
+
+# Data filtering parameters
+max_products: 20000  # Maximum number of products to process
+min_reviews_per_product: 5  # Minimum number of reviews for a product to be included
+min_reviews_per_user: 3  # Minimum number of reviews for a user to be included
+min_helpful_votes: 2  # Minimum number of helpful votes for a review to be considered
+min_rating: 3  # Minimum rating for a review to be considered positive
+
+# Graph construction parameters
+min_similarity_threshold: 0.7  # Minimum similarity threshold for product relationships
+max_relationship_distance: 2  # Maximum distance for relationship traversal
+
+# Community detection parameters
+community_min_size: 10  # Minimum size for a community
+community_resolution: 1.0  # Resolution parameter for community detection 

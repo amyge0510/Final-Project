@@ -1,0 +1,54 @@
+# Evaluation configuration
+
+# Query types and examples
+query_types:
+  relationship:
+    # Co-purchase based queries
+    - "What books are frequently bought together with 'The Da Vinci Code'?"
+    - "Which books are commonly purchased by readers of 'Harry Potter'?"
+    - "What are the most popular books bought by customers who bought this mystery novel?"
+    
+    # Review-based relationship queries
+    - "What books do readers who gave 5-star reviews to this book also highly rate?"
+    - "Which books are most frequently reviewed by the same users as this book?"
+    - "What are the most common books reviewed by users who gave this book a positive review?"
+    
+    # Category and author relationship queries
+    - "What are the most popular books in the same category as this bestseller?"
+    - "Which authors write books similar to this author's style?"
+    - "What are the most common books read by fans of this author?"
+    
+  attribute:
+    # Title and description based queries
+    - "Find books with 'mystery' in the title"
+    - "Show me books about World War II"
+    - "What are the best-selling books about artificial intelligence?"
+    
+    # Rating and review based queries
+    - "What are the highest rated books in the science fiction category?"
+    - "Find books with at least 4.5 star rating and over 1000 reviews"
+    - "Show me the most helpful reviewed books in the business category"
+    
+    # Price and availability queries
+    - "What are the best-selling books under $20?"
+    - "Find the most popular books in the $10-15 price range"
+    - "Show me the highest rated books that are currently in stock"
+
+# Evaluation parameters
+evaluation:
+  top_k: 5  # Number of results to retrieve
+  max_hops: 2  # Maximum number of hops for graph traversal
+  min_relevance_score: 0.7  # Minimum relevance score for semantic search
+  
+# Output configuration
+output:
+  results_dir: "results/evaluation"
+  timestamp_format: "%Y%m%d_%H%M%S"
+  
+# Metrics configuration
+metrics:
+  - precision
+  - recall
+  - f1_score
+  - mean_reciprocal_rank  # Added for ranking evaluation
+  - normalized_dcg  # Added for ranking evaluation 
