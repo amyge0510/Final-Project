@@ -31,6 +31,7 @@ class AmazonMetaParser:
         with open(self.file_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
             total_lines = len(lines)
+            lines = lines[:total_lines // 2]  # Only process the first half
             
             for i, line in enumerate(tqdm(lines, desc="Parsing Amazon metadata")):
                 try:
