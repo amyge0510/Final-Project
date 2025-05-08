@@ -209,6 +209,41 @@ class GraphConstructor:
                     })
         return sorted(results, key=lambda x: (-x['avg_rating'], -x['num_reviews']))
 
+    def detect_communities(self):
+        """Detect communities in the product graph using label propagation."""
+        communities = list(nx.algorithms.community.label_propagation_communities(self.G.to_undirected()))
+        self.node_community = {}
+        for i, comm in enumerate(communities):
+            for node in comm:
+                self.node_community[node] = i
+        return self.node_community
+
+    def community_recommendations(self, user_id: str, top_k: int = 5):
+        """Recommend products from the user's community that they haven't reviewed yet."""
+        if not hasattr(self, 'node_community'):
+            self.detect_communities()
+        # Find products reviewed by user
+        reviewed = set(n for n in self.G.successors(user_id) if self.G[user_id][n].get('type') == 'REVIEWED')
+        # Find user's community (based on reviewed products)
+        user_communities = set(self.node_community.get(prod) for prod in reviewed if prod in self.node_community)
+        # Recommend top products from these communities not yet reviewed
+        candidates = [n for n, d in self.G.nodes(data=True)
+                      if d.get('type') == 'Product' and self.node_community.get(n) in user_communities and n not in reviewed]
+        # Rank by number of reviews
+        ranked = sorted(candidates, key=lambda x: len([p for p in self.G.predecessors(x) if self.G[p][x].get('type') == 'REVIEWED']), reverse=True)
+        return [{'asin': n, 'title': self.G.nodes[n].get('title', '')} for n in ranked[:top_k]]
+
+    def two_hop_also_bought(self, product_asin: str, top_k: int = 5):
+        """Find products that are 2-hops away via co-purchase (also-bought-of-similar)."""
+        one_hop = set(n for n in self.G.successors(product_asin) if self.G[product_asin][n].get('type') == 'SIMILAR_TO')
+        two_hop = set()
+        for n in one_hop:
+            two_hop.update(m for m in self.G.successors(n) if self.G[n][m].get('type') == 'SIMILAR_TO')
+        two_hop -= one_hop
+        two_hop.discard(product_asin)
+        ranked = sorted(two_hop, key=lambda x: len([p for p in self.G.predecessors(x) if self.G[p][x].get('type') == 'REVIEWED']), reverse=True)
+        return [{'asin': n, 'title': self.G.nodes[n].get('title', '')} for n in ranked[:top_k]]
+
 def main():
     # Initialize graph constructor
     constructor = GraphConstructor()

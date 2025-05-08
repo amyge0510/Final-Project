@@ -47,7 +47,8 @@ results/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-*.ipynb
+# *.ipynb
+!notebooks/*.ipynb
 
 # Environment variables
 .env.local

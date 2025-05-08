@@ -40,10 +40,31 @@ evaluation:
   max_hops: 2  # Maximum number of hops for graph traversal
   min_relevance_score: 0.7  # Minimum relevance score for semantic search
   
+  metrics:
+    - precision
+    - recall
+    - f1_score
+    - mean_reciprocal_rank
+    - normalized_dcg
+
+  queries:
+    relationship:
+      - type: co_purchase
+        description: "What books are frequently bought together with X?"
+      - type: review_based
+        description: "What books do readers who gave 5-star reviews to this book also highly rate?"
+    
+    attribute:
+      - type: rating
+        description: "What are the highest rated books in the dataset?"
+      - type: category
+        description: "What are the most popular books in category X?"
+
 # Output configuration
 output:
   results_dir: "results/evaluation"
   timestamp_format: "%Y%m%d_%H%M%S"
+  save_format: "json"
   
 # Metrics configuration
 metrics:
